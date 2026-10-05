@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: vv
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:54329/vv}
+    username: ${DB_USER:vv}
+    password: ${DB_PASSWORD:vv-local}
+  flyway:
+    locations: classpath:db/migration
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${PORT:8080}

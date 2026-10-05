@@ -1,0 +1,10 @@
+.tools/
+.local/
+**/target/
+**/node_modules/
+**/dist/
+**/.angular/
+.idea/
+*.iml
+.env
+*.log

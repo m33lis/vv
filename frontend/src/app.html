@@ -1,0 +1,240 @@
+<header class="topbar">
+  <a class="brand" href="/" aria-label="VV home"
+    ><span class="monogram">VV</span
+    ><span>vaatlusvõrgustik<small>SHARED SITUATIONAL AWARENESS</small></span></a
+  >
+  <div class="workspace">
+    <span class="status-dot"></span> Tallinn workspace
+    <span class="tag">PROTOTYPE</span>
+  </div>
+  <button
+    class="primary"
+    (click)="openForm()"
+    [disabled]="loading() || !!error() || saving()"
+  >
+    ＋ New observation
+  </button>
+</header>
+<main>
+  <aside class="sidebar">
+    <div class="section-heading">
+      <span class="eyebrow">WORKSPACE / 01</span>
+      <h1>Situation overview</h1>
+      <p>Every observation adds perspective.</p>
+    </div>
+    <section class="layers">
+      <div class="section-label">
+        MAP LAYERS <span>{{layers().length}}</span>
+      </div>
+      @for (layer of layers(); track layer.id) {
+      <label class="layer"
+        ><input
+          type="checkbox"
+          [checked]="!hidden().has(layer.id)"
+          (change)="toggle(layer)"
+        /><span class="swatch" [style.background]="layer.color"></span
+        ><span
+          >{{layer.name}}@if(layer.sample){<small
+            >Demo {{layer.kind === 'area' ? 'boundary' : 'data'}}</small
+          >}</span
+        ><span class="layer-kind"
+          >{{layer.kind === 'area' ? '◇' : '⊙'}}</span
+        ></label
+      >
+      }
+    </section>
+    <section class="log">
+      <div class="section-label">
+        EVENT LOG
+        <span
+          >{{visible().length}} {{visible().length === 1 ? 'observation' :
+          'observations'}}</span
+        >
+      </div>
+      <input
+        class="search"
+        aria-label="Search observations"
+        placeholder="Search observations…"
+        [ngModel]="query()"
+        (ngModelChange)="search($event)"
+      />
+      @if (loading()) {
+      <p class="empty" role="status">Loading observations…</p>
+      } @if (error()) {
+      <div class="error" role="alert">
+        {{error()}}<button (click)="reload()">Retry connection</button>
+      </div>
+      }
+      <div class="event-list">
+        @for (event of visible(); track event.id) {
+        <button
+          class="event"
+          [class.selected]="selected()?.id === event.id"
+          (click)="select(event)"
+        >
+          <div class="event-meta">
+            <span>{{event.sample ? 'HISTORICAL SAMPLE' : 'OBSERVATION'}}</span
+            ><span>↗</span>
+          </div>
+          <h2>{{event.title}}</h2>
+          <p>{{event.description}}</p>
+          <div class="event-footer">
+            <time>{{event.occurredAt | date:'dd MMM yyyy'}}</time
+            ><span
+              >{{event.latitude | number:'1.3-3'}}, {{event.longitude |
+              number:'1.3-3'}}</span
+            >
+          </div>
+        </button>
+        } @empty { @if (!loading() && !error()) {
+        <p class="empty">
+          No matching observations. Adjust the search or layers, or add an
+          observation.
+        </p>
+        } }
+      </div>
+    </section>
+    <footer class="sidebar-footer">VV / FIELD NOTES <span>0.1</span></footer>
+  </aside>
+  <section class="map-panel" aria-label="Situation map">
+    <div id="map"></div>
+    <div class="map-heading">
+      <span class="eyebrow">ESTONIA</span><strong>Tallinn & surroundings</strong
+      ><button (click)="overview()">⌖ Reset view</button>
+    </div>
+    <div class="sample-note">
+      Historical news samples · approximate locations<br /><span
+        >Area boundary and neutral symbols are illustrative.</span
+      >
+    </div>
+    @if (mapError()) {
+    <div class="map-error" role="alert">{{mapError()}}</div>
+    } @if (notice()) {
+    <div class="notice" role="status">{{notice()}}</div>
+    } @if (selected(); as event) {
+    <article class="detail">
+      <button
+        class="close"
+        aria-label="Close observation"
+        (click)="selected.set(null)"
+      >
+        ×</button
+      ><span class="eyebrow"
+        >{{event.sample ? 'HISTORICAL SAMPLE' : 'OBSERVATION'}}</span
+      >
+      <h2>{{event.title}}</h2>
+      <p>{{event.description}}</p>
+      <dl>
+        <div>
+          <dt>LATITUDE, LONGITUDE · WGS84</dt>
+          <dd>
+            {{event.latitude | number:'1.5-5'}}, {{event.longitude |
+            number:'1.5-5'}}
+          </dd>
+        </div>
+        <div>
+          <dt>
+            {{event.sample ? 'SAMPLE TIMESTAMP' : 'OBSERVED AT'}} · LOCAL TIME
+          </dt>
+          <dd>{{event.occurredAt | date:'dd MMM yyyy, HH:mm'}}</dd>
+        </div>
+      </dl>
+      @if(event.approximate){
+      <p class="muted">
+        Approximate location. Sample time represents the publication day, not
+        the exact incident time.
+      </p>
+      }@if(safeSource(event.sourceUrl); as source){<a
+        [href]="source"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Read original report ↗</a
+      >}
+    </article>
+    } @if (adding()) {
+    <form
+      class="observation-form"
+      (ngSubmit)="save()"
+      #observationForm="ngForm"
+    >
+      <button
+        class="close"
+        type="button"
+        aria-label="Close form"
+        (click)="adding.set(false)"
+        [disabled]="saving()"
+      >
+        ×
+      </button>
+      <span class="eyebrow">ADD TO THE PICTURE</span>
+      <h2>New observation</h2>
+      <p>Click the map to set a location, or enter coordinates.</p>
+      <label
+        >Title<input
+          name="title"
+          [(ngModel)]="form.title"
+          required
+          maxlength="160"
+          placeholder="What happened?"
+      /></label>
+      <label
+        >Short description<textarea
+          name="description"
+          [(ngModel)]="form.description"
+          required
+          maxlength="2000"
+          rows="3"
+        ></textarea>
+      </label>
+      <label
+        >Layer<select name="layerId" [(ngModel)]="form.layerId" required>
+          @for(layer of pinLayers();track layer.id){
+          <option [value]="layer.id">{{layer.name}}</option>
+          }
+        </select></label
+      >
+      <div class="coordinates">
+        <label
+          >Latitude<input
+            type="number"
+            name="latitude"
+            [(ngModel)]="form.latitude"
+            required
+            min="-90"
+            max="90"
+            step="any" /></label
+        ><label
+          >Longitude<input
+            type="number"
+            name="longitude"
+            [(ngModel)]="form.longitude"
+            required
+            min="-180"
+            max="180"
+            step="any"
+        /></label>
+      </div>
+      <label
+        >Observed at · local time<input
+          type="datetime-local"
+          name="occurredAt"
+          [(ngModel)]="form.occurredAt"
+          required
+      /></label>
+      @if(saveError()){
+      <p class="error" role="alert">{{saveError()}}</p>
+      }
+      <button
+        class="primary"
+        type="submit"
+        [disabled]="observationForm.invalid || saving()"
+      >
+        {{saving() ? 'Saving…' : 'Save observation'}}
+      </button>
+    </form>
+    }
+    <div class="map-caption">
+      <span class="status-dot"></span> WGS84 <span>59°26′ N / 24°45′ E</span>
+    </div>
+  </section>
+</main>

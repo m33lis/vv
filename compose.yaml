@@ -1,0 +1,31 @@
+name: vv
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: vv
+      POSTGRES_USER: vv
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vv-local}
+    ports: ["127.0.0.1:54329:5432"]
+    volumes: ["vv-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vv -d vv"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/vv
+      DB_USER: vv
+      DB_PASSWORD: ${DB_PASSWORD:-vv-local}
+      SERVER_ADDRESS: 0.0.0.0
+      SPRING_PROFILES_ACTIVE: demo
+    depends_on:
+      db: { condition: service_healthy }
+  frontend:
+    build: ./frontend
+    ports: ["127.0.0.1:4200:80"]
+    depends_on: [backend]
+volumes:
+  vv-data:
