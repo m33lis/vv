@@ -83,4 +83,3 @@ public class ObservationController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Event not found");
         return events().stream().filter(e->e.id().equals(id)).findFirst().orElseThrow();
     }}
-

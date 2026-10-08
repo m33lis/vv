@@ -20,12 +20,13 @@ import type {
   ShapeKind,
   ObjectGeometry,
 } from "./models";
+import { AddressSearch, AddressAction } from "./address-search";
 import { WorkspaceMap } from "./workspace-map";
 
 @Component({
   selector: "vv-app",
   standalone: true,
-  imports: [FormsModule, DatePipe, DecimalPipe],
+  imports: [FormsModule, DatePipe, DecimalPipe, AddressSearch],
   templateUrl: "./app.html",
 })
 export class App implements AfterViewInit, OnDestroy {
@@ -119,6 +120,39 @@ export class App implements AfterViewInit, OnDestroy {
   }
   countObjects(id: string) {
     return this.objects().filter((o) => o.layerId === id).length;
+  }
+  addressAction(action: AddressAction) {
+    const result = action.result;
+    if (action.kind === "clear") {
+      this.workspace?.searchLocation(null);
+      return;
+    }
+    if (!result) return;
+    const position: Position = [result.longitude, result.latitude];
+    if (action.kind === "select") {
+      this.workspace?.searchLocation(position, result.label);
+      this.workspace?.focus(position);
+      this.context.set(null);
+      return;
+    }
+    if (this.saving() || this.loading() || this.error()) return;
+    if (action.kind === "event" && !this.adding() && !this.objectEditing())
+      this.openForm(position);
+    if (action.kind === "object" && !this.adding() && !this.objectEditing())
+      this.openObject(position);
+    if (action.kind === "use") {
+      if (
+        this.objectEditing() &&
+        this.objectForm.kind !== "Point" &&
+        !this.drawing()
+      ) {
+        this.vertices.update((points) =>
+          points.map((p, i) => (i === this.vertexIndex ? [...position] : p)),
+        );
+        this.renderDraft();
+      } else this.mapClick(position);
+    }
+    this.workspace?.searchLocation(null);
   }
   ngAfterViewInit() {
     this.reload();
@@ -442,6 +476,7 @@ export class App implements AfterViewInit, OnDestroy {
       if (p?.type === "Point")
         this.vertices.set([[p.coordinates[0], p.coordinates[1]]]);
     }
+    this.vertexIndex = 0;
     this.objectForm.kind = kind;
     this.vertices.set(this.vertices().slice(0, 1));
     this.drawing.set(kind !== "Point");
@@ -491,6 +526,10 @@ export class App implements AfterViewInit, OnDestroy {
     this.renderDraft();
   }
   finishShape() {
+    this.vertexIndex = Math.min(
+      this.vertexIndex,
+      Math.max(0, this.vertices().length - 1),
+    );
     if (this.canFinish()) {
       this.drawing.set(false);
       this.workspace?.drawing(false);

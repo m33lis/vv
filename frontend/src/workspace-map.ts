@@ -20,6 +20,7 @@ export class WorkspaceMap {
   ready = false;
   private markers: Marker[] = [];
   private editing = false;
+  private searchMarker?: Marker;
   private objectIds = ["vv-object-fill", "vv-object-line", "vv-object-point"];
   constructor(
     container: string,
@@ -71,6 +72,19 @@ export class WorkspaceMap {
         features[0]?.properties["id"],
       );
     });
+  }
+  searchLocation(position: Position | null, label = "") {
+    this.searchMarker?.remove();
+    this.searchMarker = undefined;
+    if (!position) return;
+    const element = document.createElement("div");
+    element.className = "address-marker";
+    element.setAttribute("role", "img");
+    element.setAttribute("aria-label", label);
+    element.title = label;
+    this.searchMarker = new Marker({ element })
+      .setLngLat(position)
+      .addTo(this.map);
   }
   centre(): Position {
     const p = this.map.getCenter();
@@ -324,6 +338,7 @@ export class WorkspaceMap {
     }
   }
   destroy() {
+    this.searchMarker?.remove();
     this.markers.forEach((m) => m.remove());
     this.map.remove();
   }

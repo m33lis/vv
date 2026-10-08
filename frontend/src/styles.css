@@ -922,3 +922,141 @@ h1 {
   font-size: 11px;
   cursor: pointer;
 }
+vv-address-search {
+  position: absolute;
+  top: 24px;
+  left: 240px;
+  right: 24px;
+  max-width: 420px;
+  z-index: 6;
+}
+.address-search {
+  background: #fffdf6;
+  color: #284432;
+  border: 1px solid #d4dece;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px #102c3325;
+  overflow: hidden;
+}
+.address-input-row {
+  display: flex;
+  align-items: center;
+}
+.address-input-row input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: #284432;
+  padding: 13px;
+  font-size: 12px;
+}
+.address-search button {
+  cursor: pointer;
+  color: #284432;
+  background: transparent;
+  border: 0;
+}
+.address-input-row button {
+  padding: 10px;
+  font-size: 19px;
+}
+.address-search p {
+  font-size: 12px;
+  padding: 10px 13px;
+  margin: 0;
+  line-height: 1.5;
+}
+.address-search small {
+  display: block;
+  font-size: 9px;
+  padding: 8px 13px;
+  color: #6d806f;
+  border-top: 1px solid #e4e9df;
+}
+.address-search small a {
+  color: inherit;
+}
+#address-results {
+  max-height: 230px;
+  overflow: auto;
+}
+#address-results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 13px;
+  font-size: 12px;
+  border-top: 1px solid #e4e9df;
+  line-height: 1.5;
+}
+#address-results button:hover,
+#address-results button[aria-selected="true"] {
+  background: #e6f0da;
+}
+.address-picked {
+  padding: 10px 13px;
+  border-top: 1px solid #e4e9df;
+}
+.address-picked strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.address-picked button {
+  font-size: 11px;
+  padding: 7px;
+  border: 1px solid #aac49b;
+  border-radius: 4px;
+  margin: 0 6px 4px 0;
+}
+.address-marker {
+  width: 20px;
+  height: 20px;
+  background: #376fce;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px #376fce35;
+  pointer-events: none;
+}
+.map-panel .sample-note {
+  display: none;
+}
+.map-panel.editing vv-address-search {
+  top: 140px;
+  left: 24px;
+  right: auto;
+  width: min(300px, calc(100% - 420px));
+}
+.map-panel.drawing vv-address-search {
+  top: 170px;
+  width: 300px;
+}
+@media (max-width: 1000px) {
+  vv-address-search {
+    left: 24px;
+    top: 140px;
+    width: 280px;
+    right: auto;
+  }
+}
+@media (max-width: 700px) {
+  vv-address-search,
+  .map-panel.editing vv-address-search,
+  .map-panel.drawing vv-address-search {
+    top: 110px;
+    left: 14px;
+    right: 14px;
+    width: auto;
+    max-width: none;
+  }
+  .map-panel.editing .observation-form {
+    top: 210px;
+    max-height: calc(100% - 225px);
+  }
+  .map-panel.drawing vv-address-search {
+    top: 160px;
+  }
+}

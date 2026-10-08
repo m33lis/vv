@@ -4,7 +4,7 @@
     ><span>vaatlusvõrgustik<small>SHARED SITUATIONAL AWARENESS</small></span></a
   >
   <div class="workspace">
-    <span class="status-dot"></span> Tallinn workspace
+    <span class="status-dot"></span> Estonia workspace
     <span class="tag">PROTOTYPE</span>
   </div>
   <div class="top-actions">
@@ -266,11 +266,22 @@
     </section>
     <footer class="sidebar-footer">VV / FIELD NOTES <span>0.2</span></footer>
   </aside>
-  <section class="map-panel" aria-label="Situation map">
+  <section
+    class="map-panel"
+    [class.editing]="adding() || objectEditing()"
+    [class.drawing]="drawing()"
+    aria-label="Situation map"
+  >
     <div id="map"></div>
+    <vv-address-search
+      [editing]="adding() || objectEditing()"
+      [disabled]="saving() || loading() || !!error()"
+      [locationMode]="drawing() ? 'draw' : objectEditing() && objectForm.kind !== 'Point' ? 'vertex' : 'point'"
+      (action)="addressAction($event)"
+    />
     <div class="map-heading">
-      <span class="eyebrow">ESTONIA</span><strong>Tallinn & surroundings</strong
-      ><button (click)="overview()">⌖ Reset view</button>
+      <span class="eyebrow">ESTONIA</span><strong>Estonia map</strong
+      ><button (click)="overview()">⌖ Reset to Tallinn</button>
     </div>
     @if(!adding() && !objectEditing()) {
     <div class="sample-note">

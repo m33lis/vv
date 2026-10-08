@@ -176,5 +176,3 @@ class MapObjectIntegrationTest {
             assertThat(request("PUT","/events/"+missing,event.formatted(layer)).statusCode()).isEqualTo(404);
         } finally {clean(layer);}
     }}
-
-

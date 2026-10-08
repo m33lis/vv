@@ -91,4 +91,3 @@ public class MapObjectController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Object not found");
         return objects().stream().filter(o->o.id().equals(id)).findFirst().orElseThrow();
     }}
-

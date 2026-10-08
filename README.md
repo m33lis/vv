@@ -74,6 +74,25 @@ Select an event or object on the map or in its list, then use **Edit event** or 
 
 Geometry is stored as WGS84 GeoJSON in PostgreSQL JSONB. Areas have one exterior boundary, without holes, and must not cross themselves. Lines and areas accept up to 1,000 coordinates (including the closing coordinate). Layer visibility and opacity are shared workspace settings stored in the database, not per-browser preferences. Saving into a hidden layer makes that layer visible.
 
+### Address search
+
+Type at least three characters in **Search Estonian addresses** above the map. Choose a suggestion to zoom to its blue marker. Use **Create event here** or **Create object here** to start a draft at that address. While creating/editing, **Use this location** updates the draft point; for lines/areas the action moves the selected boundary point or adds a point while drawing. Choosing a search result alone never changes a saved item. Save the form to persist the coordinates. Address labels/IDs are search metadata and are not yet stored on events/objects.
+
+The Java backend queries the official [In-AKS Gazetteer](https://aks.geoportaal.ee/inaks/inaadress/gazetteer), using current addresses and no apartment results. It caches up to 256 queries for ten minutes and limits upstream traffic to three requests/second with a burst of five per application instance. The UI waits 400 ms after typing and cancels superseded requests. Search failures leave the map and saved items usable. If deploying multiple instances behind one IP, apply a shared rate limit to respect the provider's per-IP quota.
+
+Direct connectivity test, from the repository directory (Node 24):
+
+```powershell
+node scripts/test-address-search.mjs "Vabaduse väljak 7 Tallinn"
+```
+
+Success prints HTTP 200 and an address/coordinate table. This tests DNS, HTTPS with certificate validation, and the provider's response independently of VV. With VV running, test the complete backend path with:
+
+```powershell
+Invoke-RestMethod 'http://127.0.0.1:8080/api/addresses?q=Vabaduse%20v%C3%A4ljak%207%20Tallinn'
+```
+
+The direct live test returned Vabaduse väljak 7, Tallinn at latitude 59.432599, longitude 24.744069 on 8 October 2026. Provider-independent tests cover Estonian query encoding, result normalization, caching, missing/invalid coordinates, empty results, malformed responses, rate-limit errors, and input limits.
 ### External elevation
 
 Use **Add layer → External elevation source**, choose a source, and create the layer. Toggle it like other layers and adjust its opacity:
@@ -89,6 +108,7 @@ These are visual overlays, not numerical elevation queries or 3D terrain. The of
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /api/addresses?q=...` | Search official Estonian addresses; return up to eight labels and WGS84 locations |
 | `GET /api/events` | All observations, newest first |
 | `PUT /api/events/{id}` | Edit event details, time, location, and layer; retain source metadata |
 | `POST /api/events` | Create an observation on a pin or object layer |
@@ -136,7 +156,7 @@ cd frontend
 npm run build
 ```
 
-Thirteen backend tests use the isolated `vv_test` schema in PostgreSQL. They cover event persistence, mixed point/line/polygon object round-trips, saved visibility and opacity, invalid coordinates, self-intersecting and unclosed polygons, forbidden layers and sources, the elevation projection origin, and layer deletion with cascading contents and isolation from other layers. Editing tests verify in-place updates, layer changes, geometry validation, missing IDs, and preservation of source metadata and creation timestamps. Test records are removed; development observations are untouched. Provider availability is checked separately rather than making the test suite depend on the internet.
+Seventeen backend tests include integration checks in the isolated `vv_test` PostgreSQL schema and address-search tests against a local stub provider. They cover event persistence, mixed point/line/polygon object round-trips, saved visibility and opacity, invalid coordinates, self-intersecting and unclosed polygons, forbidden layers and sources, the elevation projection origin, and layer deletion with cascading contents and isolation from other layers. Editing tests verify in-place updates, layer changes, geometry validation, missing IDs, and preservation of source metadata and creation timestamps. Test records are removed; development observations are untouched. Provider availability is checked separately rather than making the test suite depend on the internet.
 
 Browser checks cover right-click coordinate selection, event and object saves, drawing areas and lines, undo, visibility after reload, and external overlay opacity after reload. The basemap requires internet access. The build currently includes the MapLibre and milsymbol libraries; its compressed initial transfer is approximately 450 kB.
 
