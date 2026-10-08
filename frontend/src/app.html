@@ -7,73 +7,223 @@
     <span class="status-dot"></span> Tallinn workspace
     <span class="tag">PROTOTYPE</span>
   </div>
-  <button
-    class="primary"
-    (click)="openForm()"
-    [disabled]="loading() || !!error() || saving()"
-  >
-    ＋ New observation
-  </button>
+  <div class="top-actions">
+    <button
+      class="secondary"
+      (click)="openObject()"
+      [disabled]="loading() || !!error() || saving() || adding() || objectEditing()"
+    >
+      ◇ New object</button
+    ><button
+      class="primary"
+      (click)="openForm()"
+      [disabled]="loading() || !!error() || saving() || adding() || objectEditing()"
+    >
+      ＋ New event
+    </button>
+  </div>
 </header>
 <main>
   <aside class="sidebar">
     <div class="section-heading">
       <span class="eyebrow">WORKSPACE / 01</span>
       <h1>Situation overview</h1>
-      <p>Every observation adds perspective.</p>
+      <p>Right-click the map to add to the picture.</p>
     </div>
     <section class="layers">
       <div class="section-label">
-        MAP LAYERS <span>{{layers().length}}</span>
+        MAP LAYERS
+        <button
+          class="text-button"
+          (click)="openLayerEditor()"
+          [disabled]="loading() || !!error()"
+        >
+          ＋ Add layer
+        </button>
       </div>
-      @for (layer of layers(); track layer.id) {
-      <label class="layer"
-        ><input
-          type="checkbox"
-          [checked]="!hidden().has(layer.id)"
-          (change)="toggle(layer)"
-        /><span class="swatch" [style.background]="layer.color"></span
-        ><span
-          >{{layer.name}}@if(layer.sample){<small
-            >Demo {{layer.kind === 'area' ? 'boundary' : 'data'}}</small
-          >}</span
-        ><span class="layer-kind"
-          >{{layer.kind === 'area' ? '◇' : '⊙'}}</span
-        ></label
-      >
+      @if(layerEditor()) {
+      <form class="layer-form" (ngSubmit)="createLayer()" #newLayer="ngForm">
+        <label
+          >Layer type<select
+            name="type"
+            [(ngModel)]="layerType"
+            [disabled]="layerSaving()"
+          >
+            <option value="objects">My objects · points, lines & areas</option>
+            <option value="raster">External elevation source</option>
+          </select></label
+        >
+        @if(layerType === 'raster') {
+        <label
+          >External source<select
+            name="source"
+            [ngModel]="layerForm.sourceKey"
+            (ngModelChange)="chooseSource($event)"
+            required
+            [disabled]="layerSaving()"
+          >
+            <option value="" disabled>Choose a source</option>
+            @for(source of sources();track source.key){
+            <option [value]="source.key">{{source.name}}</option>
+            }
+          </select></label
+        >
+        @if(sourceInfo(layerForm.sourceKey);as source){
+        <p>
+          {{source.description}}
+          <a [href]="source.infoUrl" target="_blank" rel="noopener noreferrer"
+            >Source details ↗</a
+          >
+        </p>
+        } }
+        <label
+          >Layer name<input
+            name="name"
+            [(ngModel)]="layerForm.name"
+            placeholder="e.g. Grocery stores"
+            required
+            maxlength="120"
+            [disabled]="layerSaving()"
+        /></label>
+        @if(layerType === 'objects'){<label class="color-picker"
+          >Layer colour<input
+            type="color"
+            name="color"
+            [(ngModel)]="layerForm.color"
+            [disabled]="layerSaving()" /></label
+        >}
+        <div class="form-actions">
+          <button
+            class="primary"
+            [disabled]="newLayer.invalid || !layerForm.name.trim() || layerSaving()"
+          >
+            {{layerSaving() ? 'Saving…' : 'Create layer'}}</button
+          ><button
+            class="text-button"
+            type="button"
+            (click)="layerEditor.set(false)"
+            [disabled]="layerSaving()"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+      } @if(layerError()){
+      <p class="error" role="alert">{{layerError()}}</p>
       }
+      <div class="layer-list">
+        @for(layer of layers();track layer.id){
+        <div class="layer-row">
+          <label class="layer"
+            ><input
+              type="checkbox"
+              [checked]="layer.visible"
+              [disabled]="pendingLayers().has(layer.id)"
+              (change)="toggle(layer)"
+            /><span class="swatch" [style.background]="layer.color"></span
+            ><span
+              >{{layer.name}}<small
+                >{{layer.kind === 'objects' ? countObjects(layer.id) + '
+                objects' : layer.kind === 'raster' ? 'External elevation' :
+                layer.sample ? 'Demo data' : 'Events'}}</small
+              ></span
+            ><span class="layer-kind"
+              >{{layer.kind === 'raster' ? '▧' : layer.kind === 'pins' ? '⊙' :
+              '◇'}}</span
+            ></label
+          >
+          <button
+            class="layer-delete"
+            type="button"
+            [attr.aria-label]="'Delete layer ' + layer.name"
+            [disabled]="pendingLayers().has(layer.id) || adding() || objectEditing() || saving()"
+            (click)="deletingLayer.set(layer.id)"
+          >
+            Delete
+          </button>
+          @if(deletingLayer() === layer.id) {
+          <div
+            class="delete-confirm"
+            role="group"
+            [attr.aria-label]="'Confirm deletion of ' + layer.name"
+          >
+            <p>Delete “{{layer.name}}” and all its contents?</p>
+            <p>
+              {{countObjects(layer.id)}} objects and {{countEvents(layer.id)}}
+              events will be permanently deleted. This cannot be undone.
+            </p>
+            <button
+              type="button"
+              class="delete-danger"
+              (click)="deleteLayer(layer)"
+              [disabled]="pendingLayers().has(layer.id) || adding() || objectEditing()"
+            >
+              {{pendingLayers().has(layer.id) ? 'Deleting…' : 'Delete
+              permanently'}}
+            </button>
+            <button
+              type="button"
+              class="text-button"
+              (click)="deletingLayer.set(null)"
+              [disabled]="pendingLayers().has(layer.id)"
+            >
+              Cancel
+            </button>
+          </div>
+          } @if(layer.kind === 'raster' && layer.visible){<label class="opacity"
+            >Opacity {{layer.opacity * 100 | number:'1.0-0'}}%<input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              [value]="layer.opacity"
+              [attr.aria-label]="layer.name + ' opacity'"
+              [disabled]="pendingLayers().has(layer.id)"
+              (change)="opacity(layer,$any($event.target).value)"
+          /></label>
+          <p class="provider">Maa- ja Ruumiamet · visual height overlay</p>
+          }
+        </div>
+        }
+      </div>
     </section>
     <section class="log">
-      <div class="section-label">
-        EVENT LOG
-        <span
-          >{{visible().length}} {{visible().length === 1 ? 'observation' :
-          'observations'}}</span
+      <div class="log-tabs">
+        <button
+          [class.active]="logMode() === 'events'"
+          (click)="logMode.set('events')"
         >
+          Events <span>{{visible().length}}</span></button
+        ><button
+          [class.active]="logMode() === 'objects'"
+          (click)="logMode.set('objects')"
+        >
+          Objects <span>{{visibleObjects().length}}</span>
+        </button>
       </div>
       <input
         class="search"
-        aria-label="Search observations"
-        placeholder="Search observations…"
+        aria-label="Search map items"
+        placeholder="Search events and objects…"
         [ngModel]="query()"
         (ngModelChange)="search($event)"
       />
-      @if (loading()) {
-      <p class="empty" role="status">Loading observations…</p>
-      } @if (error()) {
+      @if(loading()){
+      <p class="empty" role="status">Loading workspace…</p>
+      } @if(error()){
       <div class="error" role="alert">
         {{error()}}<button (click)="reload()">Retry connection</button>
       </div>
       }
       <div class="event-list">
-        @for (event of visible(); track event.id) {
-        <button
+        @if(logMode() === 'events'){ @for(event of visible();track
+        event.id){<button
           class="event"
           [class.selected]="selected()?.id === event.id"
           (click)="select(event)"
         >
           <div class="event-meta">
-            <span>{{event.sample ? 'HISTORICAL SAMPLE' : 'OBSERVATION'}}</span
+            <span>{{event.sample ? 'HISTORICAL SAMPLE' : 'EVENT'}}</span
             ><span>↗</span>
           </div>
           <h2>{{event.title}}</h2>
@@ -84,17 +234,37 @@
               >{{event.latitude | number:'1.3-3'}}, {{event.longitude |
               number:'1.3-3'}}</span
             >
-          </div>
-        </button>
-        } @empty { @if (!loading() && !error()) {
+          </div></button
+        >} @empty{ @if(!loading() && !error()){
         <p class="empty">
-          No matching observations. Adjust the search or layers, or add an
-          observation.
+          No matching events. Adjust the search or layers, or right-click the
+          map to create an event.
         </p>
-        } }
+        } } } @else { @for(object of visibleObjects();track object.id){<button
+          class="event"
+          [class.selected]="selectedObject()?.id === object.id"
+          (click)="selectObject(object)"
+        >
+          <div class="event-meta">
+            <span
+              >{{object.geometry.type === 'Polygon' ? 'AREA' :
+              object.geometry.type === 'LineString' ? 'LINE' : 'POINT'}}</span
+            ><span>↗</span>
+          </div>
+          <h2>{{object.name}}</h2>
+          <p>{{object.description || 'No description'}}</p>
+          <div class="event-footer">
+            <span>{{layerName(object.layerId)}}</span>
+          </div></button
+        >} @empty{ @if(!loading() && !error()){
+        <p class="empty">
+          No matching objects. Create a layer, then right-click the map to add a
+          point or draw an area.
+        </p>
+        } } }
       </div>
     </section>
-    <footer class="sidebar-footer">VV / FIELD NOTES <span>0.1</span></footer>
+    <footer class="sidebar-footer">VV / FIELD NOTES <span>0.2</span></footer>
   </aside>
   <section class="map-panel" aria-label="Situation map">
     <div id="map"></div>
@@ -102,27 +272,60 @@
       <span class="eyebrow">ESTONIA</span><strong>Tallinn & surroundings</strong
       ><button (click)="overview()">⌖ Reset view</button>
     </div>
+    @if(!adding() && !objectEditing()) {
     <div class="sample-note">
-      Historical news samples · approximate locations<br /><span
-        >Area boundary and neutral symbols are illustrative.</span
+      Right-click to create an event or object.<br /><span
+        >Historical news samples have approximate locations.</span
       >
     </div>
-    @if (mapError()) {
-    <div class="map-error" role="alert">{{mapError()}}</div>
-    } @if (notice()) {
-    <div class="notice" role="status">{{notice()}}</div>
-    } @if (selected(); as event) {
+    } @if(mapError()){
+    <div class="map-error" role="alert">
+      {{mapError()}}<button (click)="retryMap()">Retry overlays</button>
+    </div>
+    } @if(notice()){
+    <div class="notice" role="status">
+      {{notice()}}
+      <button aria-label="Dismiss notice" (click)="notice.set('')">×</button>
+    </div>
+    } @if(context();as menu){
+    <div
+      class="context-menu"
+      role="group"
+      aria-label="Actions at selected location"
+      [style.left.px]="menu.x"
+      [style.top.px]="menu.y"
+      (contextmenu)="$event.preventDefault()"
+    >
+      <small
+        >{{menu.position[1] | number:'1.5-5'}}, {{menu.position[0] |
+        number:'1.5-5'}}</small
+      >
+      <button
+        id="context-event"
+        (click)="eventHere()"
+        [disabled]="loading() || !!error()"
+      >
+        ＋ Create event here
+      </button>
+      <button (click)="objectHere()" [disabled]="loading() || !!error()">
+        ◇ Create object here
+      </button>
+    </div>
+    } @if(selected();as event){
     <article class="detail">
       <button
         class="close"
-        aria-label="Close observation"
+        aria-label="Close event"
         (click)="selected.set(null)"
       >
         ×</button
       ><span class="eyebrow"
-        >{{event.sample ? 'HISTORICAL SAMPLE' : 'OBSERVATION'}}</span
+        >{{event.sample ? 'HISTORICAL SAMPLE' : 'EVENT'}}</span
       >
       <h2>{{event.title}}</h2>
+      <button class="secondary dark-text" (click)="editEvent(event)">
+        Edit event
+      </button>
       <p>{{event.description}}</p>
       <dl>
         <div>
@@ -144,97 +347,299 @@
         Approximate location. Sample time represents the publication day, not
         the exact incident time.
       </p>
-      }@if(safeSource(event.sourceUrl); as source){<a
+      }@if(safeSource(event.sourceUrl);as source){<a
         [href]="source"
         target="_blank"
         rel="noopener noreferrer"
         >Read original report ↗</a
       >}
     </article>
-    } @if (adding()) {
-    <form
-      class="observation-form"
-      (ngSubmit)="save()"
-      #observationForm="ngForm"
-    >
+    } @if(selectedObject();as object){
+    <article class="detail">
+      <button
+        class="close"
+        aria-label="Close object"
+        (click)="selectedObject.set(null)"
+      >
+        ×</button
+      ><span class="eyebrow"
+        >{{object.geometry.type === 'Polygon' ? 'AREA' : object.geometry.type
+        === 'LineString' ? 'LINE' : 'POINT'}} ·
+        {{layerName(object.layerId)}}</span
+      >
+      <h2>{{object.name}}</h2>
+      <button class="secondary dark-text" (click)="editObject(object)">
+        Edit object
+      </button>
+      <p>{{object.description || 'No description added.'}}</p>
+      <dl>
+        <div>
+          <dt>SAVED · LOCAL TIME</dt>
+          <dd>{{object.createdAt | date:'dd MMM yyyy, HH:mm'}}</dd>
+        </div>
+      </dl>
+      <p class="muted">
+        This is a persistent map object, independent of the event log.
+      </p>
+    </article>
+    } @if(adding()){
+    <form class="observation-form" (ngSubmit)="save()" #eventForm="ngForm">
       <button
         class="close"
         type="button"
-        aria-label="Close form"
-        (click)="adding.set(false)"
+        aria-label="Close event form"
+        (click)="cancelEditor()"
         [disabled]="saving()"
       >
         ×
       </button>
       <span class="eyebrow">ADD TO THE PICTURE</span>
-      <h2>New observation</h2>
-      <p>Click the map to set a location, or enter coordinates.</p>
-      <label
-        >Title<input
-          name="title"
-          [(ngModel)]="form.title"
-          required
-          maxlength="160"
-          placeholder="What happened?"
-      /></label>
-      <label
-        >Short description<textarea
-          name="description"
-          [(ngModel)]="form.description"
-          required
-          maxlength="2000"
-          rows="3"
-        ></textarea>
-      </label>
-      <label
-        >Layer<select name="layerId" [(ngModel)]="form.layerId" required>
-          @for(layer of pinLayers();track layer.id){
-          <option [value]="layer.id">{{layer.name}}</option>
-          }
-        </select></label
-      >
-      <div class="coordinates">
+      <h2>{{editingEventId() ? "Edit event" : "New event"}}</h2>
+      <p>Location is set from the map. Click elsewhere to move it.</p>
+      @if(!pinLayers().length){
+      <p>Create a layer before saving an event.</p>
+      <button type="button" class="text-button" (click)="openLayerEditor()">
+        ＋ Create a new layer</button
+      >}
+      <fieldset [disabled]="saving()">
         <label
-          >Latitude<input
-            type="number"
-            name="latitude"
-            [(ngModel)]="form.latitude"
+          >Title<input
+            name="title"
+            [(ngModel)]="form.title"
             required
-            min="-90"
-            max="90"
-            step="any" /></label
-        ><label
-          >Longitude<input
-            type="number"
-            name="longitude"
-            [(ngModel)]="form.longitude"
-            required
-            min="-180"
-            max="180"
-            step="any"
+            maxlength="160"
+            placeholder="What happened?"
         /></label>
+        <label
+          >Short description<textarea
+            name="description"
+            [(ngModel)]="form.description"
+            required
+            maxlength="2000"
+            rows="3"
+          ></textarea>
+        </label>
+        <label
+          >Layer<select name="layerId" [(ngModel)]="form.layerId" required>
+            @for(layer of pinLayers();track layer.id){
+            <option [value]="layer.id">{{layer.name}}</option>
+            }
+          </select></label
+        >
+        <div class="coordinates">
+          <label
+            >Latitude<input
+              type="number"
+              name="latitude"
+              [(ngModel)]="form.latitude"
+              (ngModelChange)="renderDraft()"
+              required
+              min="-90"
+              max="90"
+              step="any" /></label
+          ><label
+            >Longitude<input
+              type="number"
+              name="longitude"
+              [(ngModel)]="form.longitude"
+              (ngModelChange)="renderDraft()"
+              required
+              min="-180"
+              max="180"
+              step="any"
+          /></label>
+        </div>
+        <label
+          >Observed at · local time<input
+            type="datetime-local"
+            step="any"
+            name="occurredAt"
+            [(ngModel)]="form.occurredAt"
+            required
+        /></label>
+      </fieldset>
+      @if(saveError()){
+      <p class="error" role="alert">{{saveError()}}</p>
+      }
+      <button class="primary" [disabled]="eventForm.invalid || saving()">
+        {{saving() ? 'Saving…' : editingEventId() ? 'Save changes' : 'Save
+        event'}}
+      </button>
+    </form>
+    } @if(objectEditing() && drawing()){
+    <div class="draw-toolbar" role="group" aria-label="Drawing controls">
+      <strong
+        >{{objectForm.kind === 'Polygon' ? 'Draw an area' : 'Draw a
+        line'}}</strong
+      ><span
+        >Click to add {{objectForm.kind === 'Polygon' ? 'corners' : 'points'}} ·
+        {{vertices().length}} placed</span
+      >
+      <div>
+        <button (click)="undoVertex()" [disabled]="!vertices().length">
+          Undo point</button
+        ><button
+          class="primary"
+          (click)="finishShape()"
+          [disabled]="!canFinish()"
+        >
+          Finish shape</button
+        ><button (click)="cancelEditor()">Cancel</button>
       </div>
-      <label
-        >Observed at · local time<input
-          type="datetime-local"
-          name="occurredAt"
-          [(ngModel)]="form.occurredAt"
-          required
-      /></label>
+    </div>
+    } @if(objectEditing() && !drawing()){
+    <form
+      class="observation-form object-form"
+      (ngSubmit)="saveObject()"
+      #objectEditor="ngForm"
+    >
+      <button
+        class="close"
+        type="button"
+        aria-label="Close object form"
+        (click)="cancelEditor()"
+        [disabled]="saving()"
+      >
+        ×
+      </button>
+      <span class="eyebrow">DESIGNATE A PLACE</span>
+      <h2>{{editingObjectId() ? "Edit map object" : "New map object"}}</h2>
+      <p>Save a place or boundary to a layer.</p>
+      <fieldset [disabled]="saving()">
+        <label
+          >Object name<input
+            name="name"
+            [(ngModel)]="objectForm.name"
+            required
+            maxlength="160"
+            placeholder="e.g. Corner grocery store"
+        /></label>
+        <label
+          >Description<textarea
+            name="description"
+            [(ngModel)]="objectForm.description"
+            maxlength="2000"
+            rows="2"
+          ></textarea>
+        </label>
+        <label
+          >Object layer<select
+            name="objectLayer"
+            [(ngModel)]="objectForm.layerId"
+            required
+          >
+            <option value="" disabled>Choose a layer</option>
+            @for(layer of objectLayers();track layer.id){
+            <option [value]="layer.id">{{layer.name}}</option>
+            }
+          </select></label
+        >
+        <button class="text-button" type="button" (click)="openLayerEditor()">
+          ＋ Create a new layer
+        </button>
+        @if(!objectLayers().length){
+        <p>Create an object layer first, using the panel on the left.</p>
+        }
+        <label
+          >Shape<select
+            name="shape"
+            [ngModel]="objectForm.kind"
+            (ngModelChange)="changeShape($event)"
+          >
+            <option value="Point">Point</option>
+            <option value="LineString">Line</option>
+            <option value="Polygon">Area boundary</option>
+          </select></label
+        >
+        @if(objectForm.kind === 'Point'){
+        <p>Click the map to move the point.</p>
+        <div class="coordinates">
+          <label
+            >Latitude<input
+              type="number"
+              name="latitude"
+              [(ngModel)]="objectForm.latitude"
+              (ngModelChange)="renderDraft()"
+              required
+              min="-90"
+              max="90"
+              step="any" /></label
+          ><label
+            >Longitude<input
+              type="number"
+              name="longitude"
+              [(ngModel)]="objectForm.longitude"
+              (ngModelChange)="renderDraft()"
+              required
+              min="-180"
+              max="180"
+              step="any"
+          /></label>
+        </div>
+        } @else {
+        <p>{{vertices().length}} boundary points placed.</p>
+        <label
+          >Boundary point<select name="vertex" [(ngModel)]="vertexIndex">
+            @for(point of vertices();track $index){
+            <option [ngValue]="$index">Point {{$index + 1}}</option>
+            }
+          </select></label
+        >
+        @if(vertices()[vertexIndex];as point){
+        <div class="coordinates">
+          <label
+            >Point latitude<input
+              type="number"
+              name="vertexLat"
+              [ngModel]="point[1]"
+              (ngModelChange)="moveVertex(1,$event)"
+              required
+              min="-90"
+              max="90"
+              step="any"
+          /></label>
+          <label
+            >Point longitude<input
+              type="number"
+              name="vertexLon"
+              [ngModel]="point[0]"
+              (ngModelChange)="moveVertex(0,$event)"
+              required
+              min="-180"
+              max="180"
+              step="any"
+          /></label>
+        </div>
+        }
+        <button
+          class="secondary dark-text"
+          type="button"
+          (click)="redrawShape()"
+        >
+          Redraw shape
+        </button>
+        <button
+          class="secondary dark-text"
+          type="button"
+          (click)="continueShape()"
+        >
+          Continue drawing</button
+        >}
+      </fieldset>
       @if(saveError()){
       <p class="error" role="alert">{{saveError()}}</p>
       }
       <button
         class="primary"
-        type="submit"
-        [disabled]="observationForm.invalid || saving()"
+        [disabled]="objectEditor.invalid || !objectForm.name.trim() || !geometry() || saving()"
       >
-        {{saving() ? 'Saving…' : 'Save observation'}}
+        {{saving() ? 'Saving…' : editingObjectId() ? 'Save changes' : 'Save
+        object'}}
       </button>
     </form>
     }
     <div class="map-caption">
-      <span class="status-dot"></span> WGS84 <span>59°26′ N / 24°45′ E</span>
+      <span class="status-dot"></span> WGS84 <span>LATITUDE / LONGITUDE</span>
     </div>
   </section>
 </main>
